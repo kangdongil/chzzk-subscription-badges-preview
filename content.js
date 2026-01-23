@@ -64,13 +64,14 @@
   }
 
   // CORE ACTION
-  function modifyContainer(container) {
+  function findTargetArea(container) {
     const areas = [...container.querySelectorAll('[class*="subscribe_area"]')];
-    const area = areas[2];
-    if (!area) return;
+    return areas[2] ?? null;
+  }
 
+  function prepareBox(area) {
     const box = area.querySelector('[class*="subscribe_box"]');
-    if (!box) return;
+    if (!box) return null;
 
     Object.assign(box.style, {
       display: "flex",
@@ -78,9 +79,13 @@
       alignItems: "center",
     });
 
+    return box;
+  }
+
+  function createOpenButton() {
     const btn = document.createElement("button");
+    btn.type = "button";
     btn.textContent = "전체보기";
-    btn.type = "button"; // 중요: form 영향 차단
 
     Object.assign(btn.style, {
       appearance: "none",
@@ -96,9 +101,27 @@
       cursor: "pointer",
     });
 
+    return btn;
+  }
+
+  function bindOpenLayer(btn, container) {
     btn.addEventListener("click", () => {
       console.log("전체보기 클릭");
+      // 다음 단계:
+      // const root = container.closest('[class*="video_information_control"]');
+      // openLayer(root);
     });
+  }
+
+  async function modifyContainer(container) {
+    const area = findTargetArea(container);
+    if (!area) return;
+
+    const box = prepareBox(area);
+    if (!box) return;
+
+    const btn = createOpenButton();
+    bindOpenLayer(btn, container);
 
     box.appendChild(btn);
   }
