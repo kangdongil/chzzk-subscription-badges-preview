@@ -65,7 +65,42 @@
 
   // CORE ACTION
   function modifyContainer(container) {
-    console.log(container);
+    const areas = [...container.querySelectorAll('[class*="subscribe_area"]')];
+    const area = areas[2];
+    if (!area) return;
+
+    const box = area.querySelector('[class*="subscribe_box"]');
+    if (!box) return;
+
+    Object.assign(box.style, {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    });
+
+    const btn = document.createElement("button");
+    btn.textContent = "전체보기";
+    btn.type = "button"; // 중요: form 영향 차단
+
+    Object.assign(btn.style, {
+      appearance: "none",
+      background: "none",
+      border: "none",
+
+      color: "var(--Content-Neutral-Cool-Weak)",
+      fontSize: "inherit",
+      padding: "4px 0",
+      marginLeft: "8px",
+
+      textDecoration: "underline",
+      cursor: "pointer",
+    });
+
+    btn.addEventListener("click", () => {
+      console.log("전체보기 클릭");
+    });
+
+    box.appendChild(btn);
   }
 
   // LIFECYCLE
