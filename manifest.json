@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "version": "0.1",
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDesc__",
+  "default_locale": "en",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chzzk.naver.com/*/*",
+        "https://chzzk.naver.com/live/*",
+        "https://chzzk.naver.com/video/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}
