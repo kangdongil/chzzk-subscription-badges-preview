@@ -38,12 +38,13 @@
         return header?.textContent.trim() === "내 정기구독 관리";
       });
     },
+    get subscribeViewAllAction() {
+      return document.querySelector(".subscribe__box-action");
+    },
   };
 
-  window.SELECTORS = SELECTORS; // DEBUG
-
   // OBSERVER
-  function waitForElement(getter, root = document.body) {
+  function awaitElement(getter, root = document.body) {
     return new Promise((resolve) => {
       const el = getter();
       if (el) {
@@ -61,6 +62,23 @@
 
       observer.observe(root, { childList: true, subtree: true });
     });
+  }
+
+  function onElementRemoved(target, onGone, root = document.body) {
+    const getter = typeof target === "function" ? target : () => target;
+
+    const el = getter();
+    if (!el) return;
+
+    const observer = new MutationObserver(() => {
+      const current = getter();
+      if (current && current.isConnected) return;
+
+      observer.disconnect();
+      onGone();
+    });
+
+    observer.observe(root, { childList: true, subtree: true });
   }
 
   // CORE ACTION
@@ -85,6 +103,7 @@
   function createOpenButton() {
     const btn = document.createElement("button");
     btn.type = "button";
+    btn.className = "subscribe__box-action";
     btn.textContent = "전체보기";
 
     Object.assign(btn.style, {
@@ -104,13 +123,8 @@
     return btn;
   }
 
-  function bindOpenLayer(btn, container) {
-    btn.addEventListener("click", () => {
-      console.log("전체보기 클릭");
-      // 다음 단계:
-      // const root = container.closest('[class*="video_information_control"]');
-      // openLayer(root);
-    });
+  function bindOpenLayer(container) {
+    console.log("전체보기 클릭");
   }
 
   async function modifyContainer(container) {
@@ -121,7 +135,7 @@
     if (!box) return;
 
     const btn = createOpenButton();
-    bindOpenLayer(btn, container);
+    btn.addEventListener("click", () => bindOpenLayer(container));
 
     box.appendChild(btn);
   }
@@ -131,18 +145,14 @@
     if (isPopup) return;
     isPopup = true;
 
-    const container = await waitForElement(() => SELECTORS.subscribeContainer);
-    const closeBtn = container.querySelector('[class*="popup_action"]');
+    const container = await awaitElement(() => SELECTORS.subscribeContainer);
 
+    onElementRemoved(container, () => (isPopup = false));
     modifyContainer(container);
-
-    closeBtn.addEventListener("click", () => {
-      isPopup = false;
-    });
   }
 
   async function init() {
-    const btn = await waitForElement(() => SELECTORS.subscribedBtn);
+    const btn = await awaitElement(() => SELECTORS.subscribedBtn);
     btn.addEventListener("click", getSubscribeContainer);
   }
   init();

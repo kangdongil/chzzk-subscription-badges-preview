@@ -8,5 +8,8 @@
 # debug
 npm-debug.log*
 
+# git residue
+*.patch
+
 # local env files
 .env*.local
