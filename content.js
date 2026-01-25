@@ -370,8 +370,6 @@
   }
 
   // LIFECYCLE
-  let lastPath = null;
-
   async function getSubscribeContainer() {
     if (isPopup) return;
     isPopup = true;
@@ -384,7 +382,6 @@
 
   function hookSpaLifecycle(onChange) {
     let lastUrl = location.href;
-
     const notifyIfChanged = () => {
       if (location.href === lastUrl) return;
       lastUrl = location.href;
@@ -402,22 +399,40 @@
 
     window.addEventListener("popstate", notifyIfChanged);
 
-    new MutationObserver(notifyIfChanged).observe(document.body, {
+    new MutationObserver(() => {
+      queueMicrotask(notifyIfChanged);
+    }).observe(document.body, {
       childList: true,
       subtree: true,
     });
+
+    setInterval(notifyIfChanged, 300);
   }
 
   async function init() {
-    const path = location.pathname;
-    if (path === lastPath) return;
-    lastPath = path;
-
     const context = getPageContext();
     if (!context) return;
 
-    const btn = await awaitElement(() => SELECTORS.subscribedBtn);
+    let btn = await awaitSubscribedBtn();
+    bindBtn(btn);
+
+    setTimeout(async () => {
+      if (!btn?.isConnected) {
+        btn = await awaitSubscribedBtn();
+        bindBtn(btn);
+      }
+    }, 500);
+  }
+
+  function bindBtn(btn) {
+    if (!btn || btn.dataset.badgeBound === "1") return;
+
+    btn.dataset.badgeBound = "1";
     btn.addEventListener("click", getSubscribeContainer);
+  }
+
+  function awaitSubscribedBtn() {
+    return awaitElement(() => SELECTORS.subscribedBtn);
   }
 
   hookSpaLifecycle(init);
