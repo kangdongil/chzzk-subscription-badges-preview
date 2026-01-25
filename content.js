@@ -41,6 +41,9 @@
     get subscribeViewAllAction() {
       return document.querySelector(".subscribe__box-action");
     },
+    get layerCloseBtn() {
+      return document.querySelector('[class*="agree_guide_close_button"]');
+    },
   };
 
   // OBSERVER
@@ -123,9 +126,86 @@
     return btn;
   }
 
-  function bindOpenLayer(container) {
-    console.log("전체보기 클릭");
+  function buildContent() {
+    const frag = document.createDocumentFragment();
+
+    const p = document.createElement("p");
+    p.classList.add("subscribe_text__QTyrG", "subscription_box__F674Z");
+
+    const em = document.createElement("em");
+    em.className = "subscription_ellipsis__NTT+g";
+    em.textContent = "구독명 ";
+
+    const strong = document.createElement("strong");
+    strong.className = "subscription_word__vAMdf";
+    strong.textContent = "(설명)";
+
+    p.append(em, strong);
+    frag.appendChild(p);
+    return frag;
   }
+
+  function renderLayer(contentNode) {
+    const layer = document.createElement("div");
+    layer.classList.add(
+      "agree_guide_layer__+Bf5P",
+      "agree_guide_green__2yc+U",
+      "subscribe_layer__AkF-z",
+    );
+
+    const area = document.createElement("div");
+    area.className = "agree_guide_area__Pd9wN";
+    area.style.overflowY = "auto";
+
+    const group = document.createElement("div");
+    group.className = "agree_guide_group__ASV4J";
+    group.appendChild(contentNode);
+
+    area.appendChild(group);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.classList.add(
+      "button_container__ppWwB",
+      "button_only_icon__kahz5",
+      "button_smaller__98NMU",
+      "agree_guide_close_button__Eh6LO",
+    );
+    closeBtn.textContent = "✕";
+
+    layer.append(area, closeBtn);
+
+    Object.assign(layer.style, {
+      top: "110px",
+      bottom: "16px",
+      maxHeight: "calc(100% - 126px)",
+    });
+
+    return layer;
+  }
+
+  const mountLayer = (root, layer) => {
+    root.querySelector(".subscribe_layer__AkF-z")?.remove();
+    root.classList.add("subscribe_dimmed__98bz7");
+
+    root.appendChild(layer);
+
+    const closeBtn = SELECTORS.layerCloseBtn;
+
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        layer.remove();
+        root.classList.remove("subscribe_dimmed__98bz7");
+      };
+    }
+  };
+
+  const bindAllBadgeLayer = async (btn) => {
+    const root = SELECTORS.subscribeContainer;
+
+    const html = buildContent();
+    const layer = renderLayer(html);
+    mountLayer(root, layer);
+  };
 
   async function modifyContainer(container) {
     const area = findTargetArea(container);
@@ -135,7 +215,7 @@
     if (!box) return;
 
     const btn = createOpenButton();
-    btn.addEventListener("click", () => bindOpenLayer(container));
+    btn.addEventListener("click", () => bindAllBadgeLayer(container));
 
     box.appendChild(btn);
   }
