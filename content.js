@@ -1,6 +1,4 @@
 (() => {
-  console.log("content script loaded");
-
   // ENVIRONMENT & STATE
   let isPopup = false;
 
@@ -126,6 +124,48 @@
     return btn;
   }
 
+  const getChannelId = async () => {
+    const context = getPageContext();
+
+    if (context === "live") {
+      const m = location.href.match(/\/live\/([a-f0-9]{32})/i);
+      return m?.[1] ?? null;
+    }
+
+    if (context === "channel") {
+      const m = location.pathname.match(/^\/([a-f0-9]{32})$/i);
+      return m?.[1] ?? null;
+    }
+
+    if (context === "video") {
+      const m = location.pathname.match(/\/video\/(\d+)/);
+      const videoId = m?.[1];
+      if (!videoId) return null;
+
+      try {
+        const res = await fetch(
+          `https://api.chzzk.naver.com/service/v3/videos/${videoId}`,
+          { credentials: "include" },
+        );
+
+        const json = await res.json();
+        return json?.content?.channel?.channelId ?? null;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  };
+
+  const fetchTiers = async (channelId) => {
+    const res = await fetch(
+      `https://api.chzzk.naver.com/commercial/v1/channels/${channelId}/subscription/tiers`,
+      { credentials: "include" },
+    );
+    return res.json();
+  };
+
   function buildContent() {
     const frag = document.createDocumentFragment();
 
@@ -202,7 +242,11 @@
   const bindAllBadgeLayer = async (btn) => {
     const root = SELECTORS.subscribeContainer;
 
-    const html = buildContent();
+    const channelId = await getChannelId();
+    if (!root || !channelId) return;
+
+    const json = await fetchTiers(channelId);
+    const html = buildContent(json);
     const layer = renderLayer(html);
     mountLayer(root, layer);
   };
