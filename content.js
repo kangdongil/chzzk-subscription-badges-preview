@@ -166,22 +166,73 @@
     return res.json();
   };
 
-  function buildContent() {
+  function buildContent(json) {
     const frag = document.createDocumentFragment();
+    const tiers = json.content.subscriptionTierInfoList;
 
-    const p = document.createElement("p");
-    p.classList.add("subscribe_text__QTyrG", "subscription_box__F674Z");
+    tiers.forEach((tier, idx) => {
+      const tierWrap = document.createElement("div");
+      tierWrap.style.padding = "12px 0";
 
-    const em = document.createElement("em");
-    em.className = "subscription_ellipsis__NTT+g";
-    em.textContent = "구독명 ";
+      // title
+      const p = document.createElement("p");
+      p.classList.add("subscribe_text__QTyrG", "subscription_box__F674Z");
+      p.style.marginBottom = "8px";
 
-    const strong = document.createElement("strong");
-    strong.className = "subscription_word__vAMdf";
-    strong.textContent = "(설명)";
+      const em = document.createElement("em");
+      em.className = "subscription_ellipsis__NTT+g";
+      em.textContent = tier.brandName;
 
-    p.append(em, strong);
-    frag.appendChild(p);
+      const strong = document.createElement("strong");
+      strong.className = "subscription_word__vAMdf";
+      strong.textContent = " 구독 배지";
+
+      p.append(em, strong);
+      tierWrap.appendChild(p);
+
+      // badge list
+      const ol = document.createElement("ol");
+      ol.classList.add(
+        "subscribe_badge_list__Q-eS",
+        "subscribe_emoticon__gosve",
+      );
+
+      tier.subscriptionBadgeList.forEach((badge) => {
+        const li = document.createElement("li");
+        li.className = "subscribe_badge_item__j2exr";
+
+        const thumb = document.createElement("div");
+        thumb.className = "subscribe_badge_thumbnail__osg+q";
+
+        const img = document.createElement("img");
+        img.src = badge.imageUrl;
+        img.width = 36;
+        img.height = 36;
+        img.alt = "";
+        img.className = "subscribe_badge_image__lVGa8";
+
+        thumb.appendChild(img);
+
+        const label = document.createElement("p");
+        label.className = "subscribe_badge_label__R448r";
+        label.textContent = `${badge.month}개월`;
+
+        li.append(thumb, label);
+        ol.appendChild(li);
+      });
+
+      tierWrap.appendChild(ol);
+      frag.appendChild(tierWrap);
+
+      // divider
+      if (idx < tiers.length - 1) {
+        const divider = document.createElement("div");
+        divider.style.height = "1px";
+        divider.style.background = "rgba(255,255,255,.08)";
+        frag.appendChild(divider);
+      }
+    });
+
     return frag;
   }
 
@@ -197,6 +248,10 @@
     area.className = "agree_guide_area__Pd9wN";
     area.style.overflowY = "auto";
 
+    // scrollbar hide
+    area.style.scrollbarWidth = "none";
+    area.style.msOverflowStyle = "none";
+
     const group = document.createElement("div");
     group.className = "agree_guide_group__ASV4J";
     group.appendChild(contentNode);
@@ -204,6 +259,8 @@
     area.appendChild(group);
 
     const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.setAttribute("aria-label", "닫기");
     closeBtn.classList.add(
       "button_container__ppWwB",
       "button_only_icon__kahz5",
@@ -219,6 +276,14 @@
       bottom: "16px",
       maxHeight: "calc(100% - 126px)",
     });
+
+    const style = document.createElement("style");
+    style.textContent = `
+    .agree_guide_area__Pd9wN::-webkit-scrollbar {
+      display: none;
+    }
+  `;
+    document.head.appendChild(style);
 
     return layer;
   }
