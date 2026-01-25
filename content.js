@@ -101,6 +101,45 @@
     return box;
   }
 
+  function customizeProgressSection(area) {
+    const progress = area.querySelector('[class*="subscribe_progress"]');
+    if (!progress) return null;
+
+    const badges = progress.querySelectorAll('[class*="subscribe_badge__"]');
+    if (!badges[1]) return progress;
+
+    const badge = badges[1];
+    const img = badge.querySelector('[class*="subscribe_image"]');
+    if (!img) return progress;
+
+    // wrapper
+    const wrap = document.createElement("div");
+    wrap.style.position = "relative";
+
+    img.style.opacity = ".5";
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+
+    const lock = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    lock.setAttribute("width", "8");
+    lock.setAttribute("height", "10");
+    lock.setAttribute("viewBox", "0 0 8 10");
+    lock.setAttribute("fill", "none");
+    lock.classList.add("subscribe_icon_lock__Mnpnv");
+
+    lock.innerHTML = `
+    <path d="M0.5 5.5001C0.5 4.7269 1.1268 4.1001 1.9 4.1001H6.1C6.8732 4.1001 7.5 4.7269 7.5 5.5001V8.1001C7.5 8.87329 6.8732 9.5001 6.1 9.5001H1.9C1.1268 9.5001 0.5 8.8733 0.5 8.1001V5.5001Z" fill="white"></path>
+    <path d="M1.8998 3.2C1.8998 2.0402 2.84001 1.1 3.9998 1.1C5.1596 1.1 6.0998 2.0402 6.0998 3.2V5.9H1.8998V3.2Z" stroke="white" stroke-width="1.2"></path>
+  `;
+
+    wrap.appendChild(lock);
+
+    const gauge = progress.querySelector('[class*="subscribe_gauge"]');
+    if (gauge) gauge.style.width = "99%";
+
+    return progress;
+  }
+
   function createOpenButton() {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -326,6 +365,7 @@
     const btn = createOpenButton();
     btn.addEventListener("click", () => bindAllBadgeLayer(container));
 
+    const progress = customizeProgressSection(area);
     box.appendChild(btn);
   }
 
