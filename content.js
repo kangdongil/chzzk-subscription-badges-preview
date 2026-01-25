@@ -141,6 +141,8 @@
   }
 
   // LIFECYCLE
+  let lastPath = null;
+
   async function getSubscribeContainer() {
     if (isPopup) return;
     isPopup = true;
@@ -151,9 +153,44 @@
     modifyContainer(container);
   }
 
+  function hookSpaLifecycle(onChange) {
+    let lastUrl = location.href;
+
+    const notifyIfChanged = () => {
+      if (location.href === lastUrl) return;
+      lastUrl = location.href;
+      onChange();
+    };
+
+    ["pushState", "replaceState"].forEach((key) => {
+      const original = history[key];
+      history[key] = function () {
+        const result = original.apply(this, arguments);
+        queueMicrotask(notifyIfChanged);
+        return result;
+      };
+    });
+
+    window.addEventListener("popstate", notifyIfChanged);
+
+    new MutationObserver(notifyIfChanged).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
   async function init() {
+    const path = location.pathname;
+    if (path === lastPath) return;
+    lastPath = path;
+
+    const context = getPageContext();
+    if (!context) return;
+
     const btn = await awaitElement(() => SELECTORS.subscribedBtn);
     btn.addEventListener("click", getSubscribeContainer);
   }
+
+  hookSpaLifecycle(init);
   init();
 })();

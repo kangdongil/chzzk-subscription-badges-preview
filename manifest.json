@@ -6,11 +6,7 @@
   "default_locale": "en",
   "content_scripts": [
     {
-      "matches": [
-        "https://chzzk.naver.com/*/*",
-        "https://chzzk.naver.com/live/*",
-        "https://chzzk.naver.com/video/*"
-      ],
+      "matches": ["https://chzzk.naver.com/*"],
       "js": ["content.js"]
     }
   ]
