@@ -369,7 +369,11 @@
       // title
       const p = document.createElement("p");
       p.classList.add("subscribe_text__QTyrG", "subscription_box__F674Z");
-      p.style.marginBottom = "10px";
+      if (isActiveTier) {
+        p.style.marginBottom = "6px";
+      } else {
+        p.style.marginBottom = "1px";
+      }
 
       const em = document.createElement("em");
       em.className = "subscription_ellipsis__NTT+g";
@@ -394,16 +398,26 @@
         "subscribe_badge_list__Q-eS",
         "subscribe_emoticon__gosve",
       );
-
       if (!isActiveTier) {
         ol.style.opacity = ".4";
         ol.style.filter = "grayscale(.8) brightness(.85)";
         ol.style.transform = "scale(.92)";
         ol.style.transformOrigin = "center";
-        ol.style.gap = "12px 16px";
+        ol.style.gap = "8px 12px";
       }
 
-      tier.subscriptionBadgeList.forEach((badge) => {
+      const totalMonth = subscribeInfo?.totalMonth ?? 0;
+
+      // 내가 도달한 마지막 badge index
+      let lastReachedIndex = -1;
+      tier.subscriptionBadgeList.forEach((b, i) => {
+        if (b.month <= totalMonth) lastReachedIndex = i;
+      });
+
+      // 현재 + 다음 1개까지 오픈
+      const openUntilIndex = lastReachedIndex + 1;
+
+      tier.subscriptionBadgeList.forEach((badge, idx) => {
         const li = document.createElement("li");
         li.className = "subscribe_badge_item__j2exr";
 
@@ -422,6 +436,27 @@
         const label = document.createElement("p");
         label.className = "subscribe_badge_label__R448r";
         label.textContent = `${badge.month}개월`;
+
+        if (isActiveTier && idx > openUntilIndex) {
+          li.classList.add("subscribe_is_locked__tenGP");
+
+          const lock = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg",
+          );
+          lock.setAttribute("width", "8");
+          lock.setAttribute("height", "10");
+          lock.setAttribute("viewBox", "0 0 8 10");
+          lock.setAttribute("fill", "none");
+          lock.classList.add("subscribe_icon_lock__Mnpnv");
+
+          lock.innerHTML = `
+      <path d="M0.5 5.5001C0.5 4.7269 1.1268 4.1001 1.9 4.1001H6.1C6.8732 4.1001 7.5 4.7269 7.5 5.5001V8.1001C7.5 8.87329 6.8732 9.5001 6.1 9.5001H1.9C1.1268 9.5001 0.5 8.8733 0.5 8.1001V5.5001Z" fill="white"></path>
+      <path d="M1.8998 3.2C1.8998 2.0402 2.84001 1.1 3.9998 1.1C5.1596 1.1 6.0998 2.0402 6.0998 3.2V5.9H1.8998V3.2Z" stroke="white" stroke-width="1.2"></path>
+    `;
+
+          thumb.appendChild(lock);
+        }
 
         li.append(thumb, label);
         ol.appendChild(li);
