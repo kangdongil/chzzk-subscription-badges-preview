@@ -101,18 +101,17 @@
     return box;
   }
 
-  function customizeProgressSection(area) {
+  async function customizeProgressSection(area) {
     const progress = area.querySelector('[class*="subscribe_progress"]');
     if (!progress) return null;
 
     const badges = progress.querySelectorAll('[class*="subscribe_badge__"]');
     if (!badges[1]) return progress;
 
-    const badge = badges[1];
-    const img = badge.querySelector('[class*="subscribe_image"]');
+    const nextBadge = badges[1];
+    const img = nextBadge.querySelector('[class*="subscribe_image"]');
     if (!img) return progress;
 
-    // wrapper
     const wrap = document.createElement("div");
     wrap.style.position = "relative";
 
@@ -134,8 +133,69 @@
 
     wrap.appendChild(lock);
 
+    // right label dim
+    const rightLabel = nextBadge.querySelector("p");
+    if (rightLabel) rightLabel.style.color = "var(--Content-Neutral-Cool-Weak)";
+
+    const info = await getSubscribeInfo();
+    const {
+      badgeProgressRatio: percent,
+      badgeRemainingBreakdown: remaining,
+      totalMonths,
+    } = calcDailyGauge(info);
+
     const gauge = progress.querySelector('[class*="subscribe_gauge"]');
-    if (gauge) gauge.style.width = "99%";
+    if (gauge) gauge.style.width = `${percent}%`;
+
+    const bar = progress.querySelector('[class*="subscribe_bar"]');
+    if (!bar) return progress;
+
+    let label = bar.querySelector(".subscribe_remaining");
+
+    if (!label) {
+      label = document.createElement("p");
+      label.className = "subscribe_remaining";
+      Object.assign(label.style, {
+        marginTop: "12px",
+        textAlign: "center",
+        fontSize: "12px",
+        color: "var(--Content-Neutral-Cool-Weak)",
+        lineHeight: "1.2",
+      });
+      bar.appendChild(label);
+    }
+
+    label.textContent = formatRemaining(remaining);
+
+    let ticks = bar.querySelector(".subscribe_ticks");
+
+    if (!ticks) {
+      ticks = document.createElement("div");
+      ticks.className = "subscribe_ticks";
+
+      Object.assign(ticks.style, {
+        position: "absolute",
+        left: "0",
+        right: "0",
+        top: "-4px",
+        height: "8px",
+        pointerEvents: "none",
+      });
+
+      bar.appendChild(ticks);
+    }
+
+    const steps = Math.max(2, totalMonths || 3);
+
+    ticks.style.backgroundImage = `
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(100% / ${steps}),
+      rgba(255,255,255,.2) calc(100% / ${steps}),
+      rgba(255,255,255,.2) calc(100% / ${steps} + 1px)
+    )
+  `;
 
     return progress;
   }
@@ -197,6 +257,92 @@
     return null;
   };
 
+  const getSubscribeInfo = async () => {
+    const channelId = await getChannelId();
+    try {
+      const res = await fetch(
+        `https://api.chzzk.naver.com/commercial/v1/subscribe/channels/${channelId}`,
+        { credentials: "include" },
+      );
+
+      const json = await res.json();
+      return json?.content?.info ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  // month arithmetic
+  function addMonths(date, months) {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+  }
+
+  // ms → { days, hours, minutes }
+  function breakdownDuration(ms) {
+    if (ms <= 0) return { days: 0, hours: 0, minutes: 0 };
+
+    const totalMinutes = Math.floor(ms / 60000);
+
+    const days = Math.floor(totalMinutes / (60 * 24));
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+    const minutes = totalMinutes % 60;
+
+    return { days, hours, minutes };
+  }
+
+  function calcDailyGauge(json) {
+    const { lastBadgeMonth, nextBadgeMonth, nextPublishYmdt } = json;
+
+    if (!nextPublishYmdt) return 0;
+
+    const spanMonths = nextBadgeMonth - lastBadgeMonth;
+    if (spanMonths <= 0) return 0;
+
+    const nextBadgeStartDate = new Date(
+      nextPublishYmdt.replace(" ", "T") + "+09:00",
+    );
+
+    const lastBadgeStartDate = addMonths(nextBadgeStartDate, -spanMonths);
+
+    const now = new Date();
+
+    const badgeProgressPeriodMs = nextBadgeStartDate - lastBadgeStartDate;
+    const badgeElapsedMs = now - lastBadgeStartDate;
+    const badgeRemainingMs = nextBadgeStartDate - now;
+
+    const badgeProgressPeriod = badgeProgressPeriodMs / (1000 * 60 * 60 * 24);
+    const badgeElapsedDays = badgeElapsedMs / (1000 * 60 * 60 * 24);
+    const badgeRemainingDays = badgeRemainingMs / (1000 * 60 * 60 * 24);
+
+    const rawRatio = badgeElapsedMs / badgeProgressPeriodMs;
+    const badgeProgressRatio = Math.min(
+      100,
+      Math.max(0, +(rawRatio * 100).toFixed(2)),
+    );
+
+    const badgeRemainingBreakdown = breakdownDuration(badgeRemainingMs);
+
+    console.log("[badge-debug]", {
+      lastBadgeStartDate,
+      nextBadgeStartDate,
+      badgeProgressPeriod: +badgeProgressPeriod.toFixed(2),
+      badgeElapsedDays: +badgeElapsedDays.toFixed(2),
+      badgeRemainingDays: +badgeRemainingDays.toFixed(2),
+      badgeProgressRatio,
+      badgeRemainingBreakdown,
+    });
+    console.log(badgeProgressRatio, badgeRemainingDays);
+    return { badgeProgressRatio, badgeRemainingBreakdown };
+  }
+
+  function formatRemaining({ days, hours, minutes }) {
+    if (days > 0) return `${days}일 남음`;
+    if (hours > 0) return `${hours}시간 남음`;
+    return `${minutes}분 남음`;
+  }
+
   const fetchTiers = async (channelId) => {
     const res = await fetch(
       `https://api.chzzk.naver.com/commercial/v1/channels/${channelId}/subscription/tiers`,
@@ -209,7 +355,7 @@
     const frag = document.createDocumentFragment();
     const tiers = json.content.subscriptionTierInfoList;
 
-    tiers.forEach((tier, idx) => {
+    tiers.forEach((tier) => {
       const tierWrap = document.createElement("div");
       tierWrap.style.padding = "12px 0";
 
@@ -264,7 +410,7 @@
       frag.appendChild(tierWrap);
 
       // divider
-      if (idx < tiers.length - 1) {
+      if (tier !== tiers[tiers.length - 1]) {
         const divider = document.createElement("div");
         divider.style.height = "1px";
         divider.style.background = "rgba(255,255,255,.08)";
