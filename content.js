@@ -1,6 +1,8 @@
 (() => {
   // ENVIRONMENT & STATE
   let isPopup = false;
+  let currentTierNo = null;
+  let subscribeInfo = null;
 
   const getPageContext = () => {
     const path = location.pathname;
@@ -101,7 +103,7 @@
     return box;
   }
 
-  async function customizeProgressSection(area) {
+  async function customizeProgressSection(area, info) {
     const progress = area.querySelector('[class*="subscribe_progress"]');
     if (!progress) return null;
 
@@ -137,7 +139,6 @@
     const rightLabel = nextBadge.querySelector("p");
     if (rightLabel) rightLabel.style.color = "var(--Content-Neutral-Cool-Weak)";
 
-    const info = await getSubscribeInfo();
     const {
       badgeProgressRatio: percent,
       badgeRemainingBreakdown: remaining,
@@ -324,16 +325,15 @@
 
     const badgeRemainingBreakdown = breakdownDuration(badgeRemainingMs);
 
-    console.log("[badge-debug]", {
-      lastBadgeStartDate,
-      nextBadgeStartDate,
-      badgeProgressPeriod: +badgeProgressPeriod.toFixed(2),
-      badgeElapsedDays: +badgeElapsedDays.toFixed(2),
-      badgeRemainingDays: +badgeRemainingDays.toFixed(2),
-      badgeProgressRatio,
-      badgeRemainingBreakdown,
-    });
-    console.log(badgeProgressRatio, badgeRemainingDays);
+    // console.log("[badge-debug]", {
+    //   lastBadgeStartDate,
+    //   nextBadgeStartDate,
+    //   badgeProgressPeriod: +badgeProgressPeriod.toFixed(2),
+    //   badgeElapsedDays: +badgeElapsedDays.toFixed(2),
+    //   badgeRemainingDays: +badgeRemainingDays.toFixed(2),
+    //   badgeProgressRatio,
+    //   badgeRemainingBreakdown,
+    // });
     return { badgeProgressRatio, badgeRemainingBreakdown };
   }
 
@@ -355,22 +355,35 @@
     const frag = document.createDocumentFragment();
     const tiers = json.content.subscriptionTierInfoList;
 
+    tiers.sort((a, b) => {
+      if (a.tier === currentTierNo) return -1;
+      if (b.tier === currentTierNo) return 1;
+
+      return b.tier - a.tier;
+    });
     tiers.forEach((tier) => {
+      const isActiveTier = currentTierNo != null && tier.tier === currentTierNo;
       const tierWrap = document.createElement("div");
       tierWrap.style.padding = "12px 0";
 
       // title
       const p = document.createElement("p");
       p.classList.add("subscribe_text__QTyrG", "subscription_box__F674Z");
-      p.style.marginBottom = "8px";
+      p.style.marginBottom = "10px";
 
       const em = document.createElement("em");
       em.className = "subscription_ellipsis__NTT+g";
       em.textContent = tier.brandName;
 
+      if (!isActiveTier) {
+        em.style.color = "var(--Content-Neutral-Warm-Strong)";
+        em.style.filter = "grayscale(1) brightness(.85)";
+      }
+
       const strong = document.createElement("strong");
       strong.className = "subscription_word__vAMdf";
       strong.textContent = " 구독 배지";
+      strong.style.marginLeft = "4px";
 
       p.append(em, strong);
       tierWrap.appendChild(p);
@@ -381,6 +394,14 @@
         "subscribe_badge_list__Q-eS",
         "subscribe_emoticon__gosve",
       );
+
+      if (!isActiveTier) {
+        ol.style.opacity = ".4";
+        ol.style.filter = "grayscale(.8) brightness(.85)";
+        ol.style.transform = "scale(.92)";
+        ol.style.transformOrigin = "center";
+        ol.style.gap = "12px 16px";
+      }
 
       tier.subscriptionBadgeList.forEach((badge) => {
         const li = document.createElement("li");
@@ -495,6 +516,8 @@
     const channelId = await getChannelId();
     if (!root || !channelId) return;
 
+    currentTierNo = subscribeInfo?.tierNo ?? null;
+
     const json = await fetchTiers(channelId);
     const html = buildContent(json);
     const layer = renderLayer(html);
@@ -511,7 +534,7 @@
     const btn = createOpenButton();
     btn.addEventListener("click", () => bindAllBadgeLayer(container));
 
-    const progress = customizeProgressSection(area);
+    customizeProgressSection(area, subscribeInfo);
     box.appendChild(btn);
   }
 
@@ -568,6 +591,8 @@
         bindBtn(btn);
       }
     }, 500);
+
+    subscribeInfo = await getSubscribeInfo();
   }
 
   function bindBtn(btn) {
