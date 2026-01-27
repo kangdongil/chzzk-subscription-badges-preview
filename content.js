@@ -142,7 +142,7 @@
     const {
       badgeProgressRatio: percent,
       badgeRemainingBreakdown: remaining,
-      totalMonths,
+      spanMonths,
     } = calcDailyGauge(info);
 
     const gauge = progress.querySelector('[class*="subscribe_gauge"]');
@@ -169,6 +169,8 @@
     label.textContent = formatRemaining(remaining);
 
     let ticks = bar.querySelector(".subscribe_ticks");
+    const steps = spanMonths <= 6 ? spanMonths * 2 : spanMonths;
+    const stepsSafe = Math.max(1, steps);
 
     if (!ticks) {
       ticks = document.createElement("div");
@@ -176,27 +178,36 @@
 
       Object.assign(ticks.style, {
         position: "absolute",
-        left: "0",
-        right: "0",
+        inset: "0",
         top: "-4px",
         height: "8px",
+        display: "flex",
+        justifyContent: "space-between",
         pointerEvents: "none",
       });
 
       bar.appendChild(ticks);
     }
 
-    const steps = Math.max(2, totalMonths || 3);
+    /* reset */
+    ticks.innerHTML = "";
 
-    ticks.style.backgroundImage = `
-    repeating-linear-gradient(
-      to right,
-      transparent 0,
-      transparent calc(100% / ${steps}),
-      rgba(255,255,255,.2) calc(100% / ${steps}),
-      rgba(255,255,255,.2) calc(100% / ${steps} + 1px)
-    )
-  `;
+    /* leading spacer */
+    ticks.appendChild(document.createElement("i"));
+
+    for (let i = 0; i < stepsSafe - 1; i++) {
+      const t = document.createElement("span");
+
+      Object.assign(t.style, {
+        width: "1px",
+        background: "rgba(255,255,255,.2)",
+      });
+
+      ticks.appendChild(t);
+    }
+
+    /* trailing spacer */
+    ticks.appendChild(document.createElement("i"));
 
     return progress;
   }
@@ -334,7 +345,7 @@
     //   badgeProgressRatio,
     //   badgeRemainingBreakdown,
     // });
-    return { badgeProgressRatio, badgeRemainingBreakdown };
+    return { badgeProgressRatio, badgeRemainingBreakdown, spanMonths };
   }
 
   function formatRemaining({ days, hours, minutes }) {
@@ -403,7 +414,8 @@
         ol.style.filter = "grayscale(.8) brightness(.85)";
         ol.style.transform = "scale(.92)";
         ol.style.transformOrigin = "center";
-        ol.style.gap = "8px 12px";
+        ol.style.gap = "10px 14px";
+        ol.style.padding = "6px 0";
       }
 
       const totalMonth = subscribeInfo?.totalMonth ?? 0;
@@ -492,6 +504,9 @@
     // scrollbar hide
     area.style.scrollbarWidth = "none";
     area.style.msOverflowStyle = "none";
+
+    // area.style.flex = "0 0 auto";
+    area.style.maxHeight = "fit-content";
 
     const group = document.createElement("div");
     group.className = "agree_guide_group__ASV4J";
