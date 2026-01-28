@@ -12,7 +12,7 @@
   const PAGE_MATCHERS = [
     ["live", /^\/live\//],
     ["video", /^\/video\//],
-    ["channel", /^\/[^/]+$/],
+    ["channel", /^\/[a-f0-9]{32}(?:\/.*)?$/i],
   ];
 
   const getPageContext = () => {
@@ -258,7 +258,7 @@
     }
 
     if (context === "channel") {
-      const m = location.pathname.match(/^\/([a-f0-9]{32})$/i);
+      const m = location.pathname.match(/^\/([a-f0-9]{32})/i);
       return m?.[1] ?? null;
     }
 
