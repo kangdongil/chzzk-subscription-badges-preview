@@ -1,5 +1,7 @@
 (() => {
   // ENVIRONMENT & STATE
+  let __spaHooked = false;
+  let initRunning = false;
   let isPopup = false;
   let currentTierNo = null;
   let subscribeInfo = null;
@@ -599,52 +601,6 @@
     modifyContainer(container);
   }
 
-  function hookSpaLifecycle(onChange) {
-    let lastUrl = location.href;
-    const notifyIfChanged = () => {
-      if (location.href === lastUrl) return;
-      lastUrl = location.href;
-      onChange();
-    };
-
-    ["pushState", "replaceState"].forEach((key) => {
-      const original = history[key];
-      history[key] = function () {
-        const result = original.apply(this, arguments);
-        queueMicrotask(notifyIfChanged);
-        return result;
-      };
-    });
-
-    window.addEventListener("popstate", notifyIfChanged);
-
-    new MutationObserver(() => {
-      queueMicrotask(notifyIfChanged);
-    }).observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    setInterval(notifyIfChanged, 300);
-  }
-
-  async function init() {
-    const context = getPageContext();
-    if (!context) return;
-
-    let btn = await awaitSubscribedBtn();
-    bindBtn(btn);
-
-    setTimeout(async () => {
-      if (!btn?.isConnected) {
-        btn = await awaitSubscribedBtn();
-        bindBtn(btn);
-      }
-    }, 500);
-
-    subscribeInfo = await getSubscribeInfo();
-  }
-
   function bindBtn(btn) {
     if (!btn || btn.dataset.badgeBound === "1") return;
 
@@ -656,6 +612,95 @@
     return awaitElement(() => SELECTORS.subscribedBtn);
   }
 
+  function startUrlPolling(onTick, interval = 1000) {
+    let timer;
+
+    const start = () => (timer ??= setInterval(onTick, interval));
+    const stop = () => timer && (clearInterval(timer), (timer = null));
+
+    start();
+
+    document.addEventListener("visibilitychange", () =>
+      document.hidden ? stop() : start(),
+    );
+  }
+
+  function hookSpaLifecycle(onChange) {
+    // --- prevent duplicate hookSpaLifecycle
+    if (__spaHooked) return;
+    __spaHooked = true;
+
+    // --- detect actual URL changes(with debounce)
+    let lastUrl = location.href;
+    let debounceTimer;
+    const notifyIfChanged = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (location.href === lastUrl) return;
+        lastUrl = location.href;
+        onChange();
+      }, 120);
+    };
+
+    // --- hook history.pushState / replaceState
+    ["pushState", "replaceState"].forEach((key) => {
+      const original = history[key];
+      history[key] = function () {
+        const result = original.apply(this, arguments);
+        queueMicrotask(notifyIfChanged);
+        return result;
+      };
+    });
+
+    // --- listen to browser back/forward
+    window.addEventListener("popstate", notifyIfChanged);
+
+    // --- fallback: detect SPA navigations via DOM mutations
+    new MutationObserver(() => {
+      queueMicrotask(notifyIfChanged);
+    }).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    // --- fallback: URL polling
+    startUrlPolling(notifyIfChanged);
+  }
+
+  async function init() {
+    // --- prevent duplicate init
+    if (initRunning) return;
+    initRunning = true;
+
+    try {
+      // -- reset per-navigation state
+      currentTierNo = null;
+      subscribeInfo = null;
+
+      // --- skip if not supported page
+      const context = getPageContext();
+      if (!context) return;
+
+      // --- bind subscribe button
+      let btn = await awaitSubscribedBtn();
+      bindBtn(btn);
+
+      // --- retry once listener is attached to the final node
+      setTimeout(async () => {
+        if (!btn?.isConnected) {
+          btn = await awaitSubscribedBtn();
+          bindBtn(btn);
+        }
+      }, 500);
+
+      // --- load supscription info
+      subscribeInfo = await getSubscribeInfo();
+    } finally {
+      initRunning = false;
+    }
+  }
+
+  // --- initialize init with SPA lifecycle hooks
   hookSpaLifecycle(init);
   init();
 })();
