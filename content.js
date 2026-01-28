@@ -183,8 +183,7 @@
     label.textContent = formatRemaining(remaining);
 
     let ticks = bar.querySelector(".subscribe_ticks");
-    const steps = spanMonths <= 6 ? spanMonths * 2 : spanMonths;
-    const stepsSafe = Math.max(1, steps);
+    const steps = calcTickSteps(spanMonths);
 
     if (!ticks) {
       ticks = document.createElement("div");
@@ -209,7 +208,7 @@
     /* leading spacer */
     ticks.appendChild(document.createElement("i"));
 
-    for (let i = 0; i < stepsSafe - 1; i++) {
+    for (let i = 0; i < steps - 1; i++) {
       const t = document.createElement("span");
 
       Object.assign(t.style, {
@@ -318,6 +317,12 @@
     const minutes = totalMinutes % 60;
 
     return { days, hours, minutes };
+  }
+
+  function calcTickSteps(spanMonths) {
+    if (!spanMonths || spanMonths <= 0) return 0;
+
+    return spanMonths <= 6 ? spanMonths * 2 : spanMonths;
   }
 
   function calcDailyGauge(json) {
@@ -598,9 +603,16 @@
 
     // --- fetch all subscription tiers
     const json = await fetchTiers(channelId);
+    if (!json) {
+      console.warn("[badge] tier fetch failed");
+      return;
+    }
 
     // --- drop result if navigation changed during fetch
-    if (myReq !== state.reqId) return;
+    if (myReq !== state.reqId) {
+      console.debug("[badge] drop stale response");
+      return;
+    }
 
     // --- render and mount badge layer
     const html = buildContent(json);
@@ -726,6 +738,7 @@
 
       // --- bind subscribe button
       let btn = await awaitSubscribedBtn();
+      if (!btn) console.warn("[badge] subscribe button not found");
       bindBtn(btn);
 
       // --- retry once listener is attached to the final node
@@ -744,6 +757,7 @@
 
       // --- load supscription info
       state.subscribeInfo = await getSubscribeInfo();
+      if (!state.subscribeInfo) console.warn("[badge] subscribeInfo null");
       if (myReq !== state.reqId) return;
 
       // --- load lazy popup
