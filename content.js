@@ -4,9 +4,10 @@
     __spaHooked: false,
     initRunning: false,
     isPopup: false,
-    reqId: 0,
     currentTierNo: null,
     subscribeInfo: null,
+    devRemainingMs: null,
+    reqId: 0,
   };
 
   const PAGE_MATCHERS = [
@@ -155,7 +156,9 @@
 
     const {
       badgeProgressRatio: percent,
-      badgeRemainingBreakdown: remaining,
+      badgeRemainingBreakdown,
+      badgeRemainingMonthDay,
+      badgeRemainingMs,
       spanMonths,
     } = calcDailyGauge(info);
 
@@ -180,7 +183,26 @@
       bar.appendChild(label);
     }
 
-    label.textContent = formatRemaining(remaining);
+    label.textContent = formatRemaining(
+      badgeRemainingMonthDay,
+      badgeRemainingBreakdown,
+      badgeRemainingMs,
+    );
+
+    // --- realtime remaining update (execute when 12 hours left)
+    const HOUR = 60 * 60 * 1000;
+    if (badgeRemainingMs <= 12 * HOUR && !label._badgeTimer) {
+      label._badgeTimer = setInterval(() => {
+        const { badgeRemainingMonthDay, badgeRemainingBreakdown } =
+          calcDailyGauge(info);
+
+        label.textContent = formatRemaining(
+          badgeRemainingMonthDay,
+          badgeRemainingBreakdown,
+          badgeRemainingMs,
+        );
+      }, 60 * 1000);
+    }
 
     let ticks = bar.querySelector(".subscribe_ticks");
     const steps = calcTickSteps(spanMonths);
@@ -306,6 +328,26 @@
     return d;
   }
 
+  function breakdownMonthDay(now, target) {
+    let months = 0;
+    let cursor = new Date(now);
+
+    // --- count full months forward
+    while (true) {
+      const next = addMonths(cursor, 1);
+      if (next <= target) {
+        cursor = next;
+        months++;
+      } else break;
+    }
+
+    // --- remaining days after month subtraction
+    const restMs = target - cursor;
+    const days = Math.floor(restMs / (1000 * 60 * 60 * 24));
+
+    return { months, days };
+  }
+
   // ms → { days, hours, minutes }
   function breakdownDuration(ms) {
     if (ms <= 0) return { days: 0, hours: 0, minutes: 0 };
@@ -343,7 +385,9 @@
 
     const badgeProgressPeriodMs = nextBadgeStartDate - lastBadgeStartDate;
     const badgeElapsedMs = now - lastBadgeStartDate;
-    const badgeRemainingMs = nextBadgeStartDate - now;
+    let badgeRemainingMs = nextBadgeStartDate - now; //debug const => let
+    state.devRemainingMs = 143 * 24 * 60 * 60 * 1000; // debug
+    if (state.devRemainingMs != null) badgeRemainingMs = state.devRemainingMs;
 
     const badgeProgressPeriod = badgeProgressPeriodMs / (1000 * 60 * 60 * 24);
     const badgeElapsedDays = badgeElapsedMs / (1000 * 60 * 60 * 24);
@@ -356,6 +400,7 @@
     );
 
     const badgeRemainingBreakdown = breakdownDuration(badgeRemainingMs);
+    const badgeRemainingMonthDay = breakdownMonthDay(now, nextBadgeStartDate);
 
     // console.log("[badge-debug]", {
     //   lastBadgeStartDate,
@@ -366,12 +411,23 @@
     //   badgeProgressRatio,
     //   badgeRemainingBreakdown,
     // });
-    return { badgeProgressRatio, badgeRemainingBreakdown, spanMonths };
+    return {
+      badgeProgressRatio,
+      badgeRemainingBreakdown,
+      badgeRemainingMonthDay,
+      spanMonths,
+      badgeRemainingMs,
+    };
   }
 
-  function formatRemaining({ days, hours, minutes }) {
-    if (days > 0) return `${days}일 남음`;
-    if (hours > 0) return `${hours}시간 남음`;
+  function formatRemaining({ months }, { days, hours, minutes }, remainingMs) {
+    const DAY = 24 * 60 * 60 * 1000;
+    const HOUR = 60 * 60 * 1000;
+
+    if (remainingMs >= 1000 * DAY) return `${months}개월 남음`;
+    if (remainingMs >= DAY) return `${days}일 남음`;
+    if (remainingMs >= HOUR) return `${hours}시간 남음`;
+
     return `${minutes}분 남음`;
   }
 
