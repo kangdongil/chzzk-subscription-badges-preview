@@ -385,8 +385,7 @@
 
     const badgeProgressPeriodMs = nextBadgeStartDate - lastBadgeStartDate;
     const badgeElapsedMs = now - lastBadgeStartDate;
-    let badgeRemainingMs = nextBadgeStartDate - now; //debug const => let
-    state.devRemainingMs = 143 * 24 * 60 * 60 * 1000; // debug
+    let badgeRemainingMs = nextBadgeStartDate - now;
     if (state.devRemainingMs != null) badgeRemainingMs = state.devRemainingMs;
 
     const badgeProgressPeriod = badgeProgressPeriodMs / (1000 * 60 * 60 * 24);
