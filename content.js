@@ -1,19 +1,23 @@
 (() => {
   // ENVIRONMENT & STATE
-  let __spaHooked = false;
-  let initRunning = false;
-  let isPopup = false;
-  let currentTierNo = null;
-  let subscribeInfo = null;
+  const state = {
+    __spaHooked: false,
+    initRunning: false,
+    isPopup: false,
+    currentTierNo: null,
+    subscribeInfo: null,
+  };
+
+  const PAGE_MATCHERS = [
+    ["live", /^\/live\//],
+    ["video", /^\/video\//],
+    ["channel", /^\/[^/]+$/],
+  ];
 
   const getPageContext = () => {
     const path = location.pathname;
 
-    if (/^\/live\//.test(path)) return "live";
-    if (/^\/video\//.test(path)) return "video";
-    if (/^\/[^/]+$/.test(path)) return "channel";
-
-    return null;
+    return PAGE_MATCHERS.find(([, r]) => r.test(path))?.[0] ?? null;
   };
 
   // SELECTORS
@@ -26,6 +30,8 @@
   const SELECTORS = {
     get subscribedBtn() {
       const context = getPageContext();
+      if (!context) return null;
+
       return [
         ...document.querySelectorAll(
           `${CONTROL_ROOT_SELECTOR[context]} button`,
@@ -49,7 +55,7 @@
   };
 
   // OBSERVER
-  function awaitElement(getter, root = document.body) {
+  function awaitElement(getter, root = document.body, timeout = 10000) {
     return new Promise((resolve) => {
       const el = getter();
       if (el) {
@@ -66,6 +72,11 @@
       });
 
       observer.observe(root, { childList: true, subtree: true });
+
+      setTimeout(() => {
+        observer.disconnect();
+        resolve(null);
+      }, timeout);
     });
   }
 
@@ -106,6 +117,8 @@
   }
 
   async function customizeProgressSection(area, info) {
+    if (!info) return;
+
     const progress = area.querySelector('[class*="subscribe_progress"]');
     if (!progress) return null;
 
@@ -273,6 +286,8 @@
 
   const getSubscribeInfo = async () => {
     const channelId = await getChannelId();
+    if (!channelId) return null;
+
     try {
       const res = await fetch(
         `https://api.chzzk.naver.com/commercial/v1/subscribe/channels/${channelId}`,
@@ -369,13 +384,14 @@
     const tiers = json.content.subscriptionTierInfoList;
 
     tiers.sort((a, b) => {
-      if (a.tier === currentTierNo) return -1;
-      if (b.tier === currentTierNo) return 1;
+      if (a.tier === state.currentTierNo) return -1;
+      if (b.tier === state.currentTierNo) return 1;
 
       return b.tier - a.tier;
     });
     tiers.forEach((tier) => {
-      const isActiveTier = currentTierNo != null && tier.tier === currentTierNo;
+      const isActiveTier =
+        state.currentTierNo != null && tier.tier === state.currentTierNo;
       const tierWrap = document.createElement("div");
       tierWrap.style.padding = "12px 0";
 
@@ -420,7 +436,7 @@
         ol.style.padding = "6px 0";
       }
 
-      const totalMonth = subscribeInfo?.totalMonth ?? 0;
+      const totalMonth = state.subscribeInfo?.totalMonth ?? 0;
 
       // 내가 도달한 마지막 badge index
       let lastReachedIndex = -1;
@@ -568,7 +584,7 @@
     const channelId = await getChannelId();
     if (!root || !channelId) return;
 
-    currentTierNo = subscribeInfo?.tierNo ?? null;
+    state.currentTierNo = state.subscribeInfo?.tierNo ?? null;
 
     const json = await fetchTiers(channelId);
     const html = buildContent(json);
@@ -586,25 +602,29 @@
     const btn = createOpenButton();
     btn.addEventListener("click", () => bindAllBadgeLayer(container));
 
-    customizeProgressSection(area, subscribeInfo);
+    customizeProgressSection(area, state.subscribeInfo);
     box.appendChild(btn);
   }
 
   // LIFECYCLE
   async function getSubscribeContainer() {
-    if (isPopup) return;
-    isPopup = true;
+    if (state.isPopup) return;
+    state.isPopup = true;
 
     const container = await awaitElement(() => SELECTORS.subscribeContainer);
 
-    onElementRemoved(container, () => (isPopup = false));
+    if (!container) {
+      state.isPopup = false;
+      return;
+    }
+
+    onElementRemoved(container, () => (state.isPopup = false));
     modifyContainer(container);
   }
 
   function bindBtn(btn) {
-    if (!btn || btn.dataset.badgeBound === "1") return;
-
-    btn.dataset.badgeBound = "1";
+    if (!btn || btn._badgeBound) return;
+    btn._badgeBound = true;
     btn.addEventListener("click", getSubscribeContainer);
   }
 
@@ -627,8 +647,8 @@
 
   function hookSpaLifecycle(onChange) {
     // --- prevent duplicate hookSpaLifecycle
-    if (__spaHooked) return;
-    __spaHooked = true;
+    if (state.__spaHooked) return;
+    state.__spaHooked = true;
 
     // --- detect actual URL changes(with debounce)
     let lastUrl = location.href;
@@ -669,13 +689,13 @@
 
   async function init() {
     // --- prevent duplicate init
-    if (initRunning) return;
-    initRunning = true;
+    if (state.initRunning) return;
+    state.initRunning = true;
 
     try {
       // -- reset per-navigation state
-      currentTierNo = null;
-      subscribeInfo = null;
+      state.currentTierNo = null;
+      state.subscribeInfo = null;
 
       // --- skip if not supported page
       const context = getPageContext();
@@ -694,9 +714,15 @@
       }, 500);
 
       // --- load supscription info
-      subscribeInfo = await getSubscribeInfo();
+      state.subscribeInfo = await getSubscribeInfo();
+
+      // --- load lazy popup
+      if (state.isPopup) {
+        const container = SELECTORS.subscribeContainer;
+        if (container) modifyContainer(container);
+      }
     } finally {
-      initRunning = false;
+      state.initRunning = false;
     }
   }
 
