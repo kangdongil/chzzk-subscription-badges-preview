@@ -227,24 +227,24 @@
   }
 
   function createOpenButton() {
+    const VIEW_ALL_BTN_STYLE = {
+      appearance: "none",
+      background: "none",
+      border: "none",
+      color: "var(--Content-Neutral-Cool-Weak)",
+      fontSize: "inherit",
+      padding: "4px 0",
+      marginLeft: "8px",
+      textDecoration: "underline",
+      cursor: "pointer",
+    };
+
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "subscribe__box-action";
     btn.textContent = "전체보기";
 
-    Object.assign(btn.style, {
-      appearance: "none",
-      background: "none",
-      border: "none",
-
-      color: "var(--Content-Neutral-Cool-Weak)",
-      fontSize: "inherit",
-      padding: "4px 0",
-      marginLeft: "8px",
-
-      textDecoration: "underline",
-      cursor: "pointer",
-    });
+    Object.assign(btn.style, VIEW_ALL_BTN_STYLE);
 
     return btn;
   }
@@ -379,6 +379,15 @@
   };
 
   function buildContent(json) {
+    const INACTIVE_TIER_STYLE = {
+      opacity: ".4",
+      filter: "grayscale(.8) brightness(.85)",
+      transform: "scale(.92)",
+      transformOrigin: "center",
+      gap: "10px 14px",
+      padding: "6px 0",
+    };
+
     const frag = document.createDocumentFragment();
     const tiers = json.content.subscriptionTierInfoList;
 
@@ -426,13 +435,9 @@
         "subscribe_badge_list__Q-eS",
         "subscribe_emoticon__gosve",
       );
+
       if (!isActiveTier) {
-        ol.style.opacity = ".4";
-        ol.style.filter = "grayscale(.8) brightness(.85)";
-        ol.style.transform = "scale(.92)";
-        ol.style.transformOrigin = "center";
-        ol.style.gap = "10px 14px";
-        ol.style.padding = "6px 0";
+        Object.assign(ol.style, INACTIVE_TIER_STYLE);
       }
 
       const totalMonth = state.subscribeInfo?.totalMonth ?? 0;
