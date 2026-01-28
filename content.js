@@ -4,6 +4,7 @@
     __spaHooked: false,
     initRunning: false,
     isPopup: false,
+    reqId: 0,
     currentTierNo: null,
     subscribeInfo: null,
   };
@@ -29,6 +30,7 @@
 
   const SELECTORS = {
     get subscribedBtn() {
+      // --- resolve by current page context
       const context = getPageContext();
       if (!context) return null;
 
@@ -46,9 +48,6 @@
         return header?.textContent.trim() === "내 정기구독 관리";
       });
     },
-    get subscribeViewAllAction() {
-      return document.querySelector(".subscribe__box-action");
-    },
     get layerCloseBtn() {
       return document.querySelector('[class*="agree_guide_close_button"]');
     },
@@ -58,11 +57,9 @@
   function awaitElement(getter, root = document.body, timeout = 10000) {
     return new Promise((resolve) => {
       const el = getter();
-      if (el) {
-        resolve(el);
-        return;
-      }
+      if (el) return resolve(el);
 
+      // --- observe DOM until found
       const observer = new MutationObserver(() => {
         const el = getter();
         if (!el) return;
@@ -73,6 +70,7 @@
 
       observer.observe(root, { childList: true, subtree: true });
 
+      // --- fallback timeout
       setTimeout(() => {
         observer.disconnect();
         resolve(null);
@@ -87,6 +85,7 @@
     if (!el) return;
 
     const observer = new MutationObserver(() => {
+      // --- stop when target is detached
       const current = getter();
       if (current && current.isConnected) return;
 
@@ -579,14 +578,26 @@
   };
 
   const bindAllBadgeLayer = async (btn) => {
+    // --- resolve current popup root
     const root = SELECTORS.subscribeContainer;
 
+    // --- resolve channel id for current page
     const channelId = await getChannelId();
     if (!root || !channelId) return;
 
+    // --- capture current request generation
+    const myReq = state.reqId;
+
+    // --- cache active tier for sorting / highlighting
     state.currentTierNo = state.subscribeInfo?.tierNo ?? null;
 
+    // --- fetch all subscription tiers
     const json = await fetchTiers(channelId);
+
+    // --- drop result if navigation changed during fetch
+    if (myReq !== state.reqId) return;
+
+    // --- render and mount badge layer
     const html = buildContent(json);
     const layer = renderLayer(html);
     mountLayer(root, layer);
@@ -599,10 +610,14 @@
     const box = prepareBox(area);
     if (!box) return;
 
-    const btn = createOpenButton();
-    btn.addEventListener("click", () => bindAllBadgeLayer(container));
-
     customizeProgressSection(area, state.subscribeInfo);
+
+    if (box.querySelector("[data-badge-view-all]")) return;
+
+    const btn = createOpenButton();
+    btn.dataset.badgeViewAll = "1";
+    btn.addEventListener("click", bindAllBadgeLayer);
+
     box.appendChild(btn);
   }
 
@@ -701,6 +716,9 @@
       const context = getPageContext();
       if (!context) return;
 
+      // --- ignore invalidate in-flight fetches by navigation generation
+      const myReq = ++state.reqId;
+
       // --- bind subscribe button
       let btn = await awaitSubscribedBtn();
       bindBtn(btn);
@@ -721,6 +739,7 @@
 
       // --- load supscription info
       state.subscribeInfo = await getSubscribeInfo();
+      if (myReq !== state.reqId) return;
 
       // --- load lazy popup
       if (state.isPopup) {
