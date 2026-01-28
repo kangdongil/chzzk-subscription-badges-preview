@@ -710,6 +710,12 @@
         if (!btn?.isConnected) {
           btn = await awaitSubscribedBtn();
           bindBtn(btn);
+
+          if (SELECTORS.subscribeContainer) getSubscribeContainer();
+        }
+
+        if (SELECTORS.subscribeContainer) {
+          getSubscribeContainer();
         }
       }, 500);
 
