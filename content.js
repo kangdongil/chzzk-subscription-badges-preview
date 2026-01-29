@@ -515,6 +515,12 @@
         const li = document.createElement("li");
         li.className = "subscribe_badge_item__j2exr";
 
+        Object.assign(li.style, {
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        });
+
         const thumb = document.createElement("div");
         thumb.className = "subscribe_badge_thumbnail__osg+q";
 
@@ -530,6 +536,10 @@
         const label = document.createElement("p");
         label.className = "subscribe_badge_label__R448r";
         label.textContent = `${badge.month}개월`;
+
+        if (!isActiveTier) {
+          label.style.marginTop = "2px";
+        }
 
         if (isActiveTier && idx > openUntilIndex) {
           li.classList.add("subscribe_is_locked__tenGP");
