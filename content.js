@@ -669,7 +669,7 @@
     // --- fetch all subscription tiers
     const json = await fetchTiers(channelId);
     if (!json) {
-      console.warn("[badge] tier fetch failed");
+      console.debug("[badge] tier fetch failed");
       return;
     }
 
@@ -803,7 +803,7 @@
 
       // --- bind subscribe button
       let btn = await awaitSubscribedBtn();
-      if (!btn) console.warn("[badge] subscribe button not found");
+      if (!btn) console.debug("[badge] subscribe button not found");
       bindBtn(btn);
 
       // --- retry once listener is attached to the final node
@@ -822,7 +822,7 @@
 
       // --- load supscription info
       state.subscribeInfo = await getSubscribeInfo();
-      if (!state.subscribeInfo) console.warn("[badge] subscribeInfo null");
+      if (!state.subscribeInfo) console.debug("[badge] subscribeInfo null");
       if (myReq !== state.reqId) return;
 
       // --- load lazy popup
