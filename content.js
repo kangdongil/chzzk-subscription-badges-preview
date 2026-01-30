@@ -620,9 +620,10 @@
     layer.append(area, closeBtn);
 
     Object.assign(layer.style, {
-      top: "110px",
-      bottom: "16px",
-      maxHeight: "calc(100% - 126px)",
+      top: "clamp(72px, 18vh, 180px)",
+      bottom: "auto",
+      maxHeight: "calc(100% - 196px)",
+      overflowY: "auto",
     });
 
     const style = document.createElement("style");
